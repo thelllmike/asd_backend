@@ -28,7 +28,7 @@ class PredictionResponse(BaseModel):
     id: int
     user_id: str
     prediction: int
-    improvement_percentage: float  # New field for percentage
+    improvement_percentage: float
     created_at: datetime
 
     class Config:
@@ -38,3 +38,4 @@ class OverallPredictionResponse(BaseModel):
     user_id: str
     overall_prediction: int
     count: int
+    overall_improvement_percentage: float

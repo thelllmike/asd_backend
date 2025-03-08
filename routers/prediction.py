@@ -9,7 +9,7 @@ from collections import Counter
 
 router = APIRouter()
 
-# Load the pre-trained model
+# Load the pre-trained model (ensure it supports predict_proba)
 model = joblib.load("asd_progress_model.pkl")
 
 # Dependency to get DB session
@@ -22,7 +22,6 @@ def get_db():
 
 @router.post("/predict", response_model=PredictionResponse)
 def create_prediction_endpoint(prediction: PredictionCreate, db: Session = Depends(get_db)):
-    # Ensure the feature order matches your training code
     feature_columns = [
         "Eye_Contact_Initial", "Follows_Instructions_Initial", "Verbal_Improvement_Initial", 
         "Repeats_Words_Initial", "Routine_Sensitivity_Initial", "Repetitive_Actions_Initial", 
@@ -33,11 +32,30 @@ def create_prediction_endpoint(prediction: PredictionCreate, db: Session = Depen
         "Outdoor_Change_Followup", "Therapy_Engagement_Followup"
     ]
     
+    # Build the feature array
     features = np.array([getattr(prediction, col) for col in feature_columns]).reshape(1, -1)
+    
+    # Get prediction probabilities and calculate improvement percentage
+    probabilities = model.predict_proba(features)[0]
+    improvement_percentage = probabilities[1] * 100  # Assuming index 1 is for 'improved'
     predicted_label = int(model.predict(features)[0])
     
-    db_prediction = create_prediction(db=db, prediction=prediction, predicted_label=predicted_label)
-    return db_prediction
+    # Save to DB with improvement_percentage
+    db_prediction = create_prediction(
+        db=db,
+        prediction=prediction,
+        predicted_label=predicted_label,
+        improvement_percentage=improvement_percentage
+    )
+    
+    response_data = {
+        "id": db_prediction.id,
+        "user_id": db_prediction.user_id,
+        "prediction": db_prediction.prediction,
+        "improvement_percentage": db_prediction.improvement_percentage,
+        "created_at": db_prediction.created_at
+    }
+    return response_data
 
 @router.get("/user/{user_id}/overall", response_model=OverallPredictionResponse)
 def get_overall_prediction(user_id: str, db: Session = Depends(get_db)):
@@ -45,12 +63,17 @@ def get_overall_prediction(user_id: str, db: Session = Depends(get_db)):
     if not predictions:
         raise HTTPException(status_code=404, detail="No predictions found for this user.")
     
-    # Compute overall prediction using the mode (most common prediction)
+    # Compute overall prediction as the mode of prediction labels
     prediction_labels = [pred.prediction for pred in predictions]
     overall_prediction = Counter(prediction_labels).most_common(1)[0][0]
+    
+    # Compute overall improvement percentage as the average of all stored improvement percentages
+    improvement_percentages = [pred.improvement_percentage for pred in predictions if pred.improvement_percentage is not None]
+    overall_improvement_percentage = sum(improvement_percentages) / len(improvement_percentages) if improvement_percentages else 0
     
     return OverallPredictionResponse(
         user_id=user_id,
         overall_prediction=overall_prediction,
-        count=len(prediction_labels)
+        count=len(predictions),
+        overall_improvement_percentage=overall_improvement_percentage
     )

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from models.prediction_model import Prediction
 from shemas.prediction_shema import PredictionCreate
 
-def create_prediction(db: Session, prediction: PredictionCreate, predicted_label: int):
+def create_prediction(db: Session, prediction: PredictionCreate, predicted_label: int, improvement_percentage: float):
     db_prediction = Prediction(
         user_id=prediction.user_id,
         Eye_Contact_Initial=prediction.Eye_Contact_Initial,
@@ -25,7 +25,8 @@ def create_prediction(db: Session, prediction: PredictionCreate, predicted_label
         Social_Interaction_Followup=prediction.Social_Interaction_Followup,
         Outdoor_Change_Followup=prediction.Outdoor_Change_Followup,
         Therapy_Engagement_Followup=prediction.Therapy_Engagement_Followup,
-        prediction=predicted_label
+        prediction=predicted_label,
+        improvement_percentage=improvement_percentage
     )
     db.add(db_prediction)
     db.commit()

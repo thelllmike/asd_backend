@@ -7,9 +7,8 @@ class Prediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(255), index=True)
-
     
-    # Feature columns (as floats; adjust types if needed)
+    # Feature columns
     Eye_Contact_Initial = Column(Float)
     Follows_Instructions_Initial = Column(Float)
     Verbal_Improvement_Initial = Column(Float)
@@ -20,6 +19,7 @@ class Prediction(Base):
     Social_Interaction_Initial = Column(Float)
     Outdoor_Change_Initial = Column(Float)
     Therapy_Engagement_Initial = Column(Float)
+    
     Eye_Contact_Followup = Column(Float)
     Follows_Instructions_Followup = Column(Float)
     Verbal_Improvement_Followup = Column(Float)
@@ -31,7 +31,8 @@ class Prediction(Base):
     Outdoor_Change_Followup = Column(Float)
     Therapy_Engagement_Followup = Column(Float)
     
-    # Predicted label: 1 (Improved), 0 (No Change), -1 (Declined)
+    # Prediction label and improvement percentage
     prediction = Column(Integer)
+    improvement_percentage = Column(Float, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
