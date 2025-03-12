@@ -29,8 +29,6 @@ ENV/
 env/
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -101,8 +99,11 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Model files (if you want to exclude the trained model from version control)
-# asd_progress_model.pkl
+# Environment variables file
+.env
+
+# Model files (uncomment to ignore trained model files if desired)
+fine_tuned_model.h5
 
 # Log files
 *.log
