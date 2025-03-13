@@ -8,3 +8,5 @@ pandas
 numpy
 tensorflow
 pillow
+passlib[bcrypt]
+python-jose[cryptography]
