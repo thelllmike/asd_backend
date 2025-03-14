@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 class PredictionCreate(BaseModel):
-    user_id: str
+    user_id: int
     Eye_Contact_Initial: float
     Follows_Instructions_Initial: float
     Verbal_Improvement_Initial: float
@@ -26,7 +26,7 @@ class PredictionCreate(BaseModel):
 
 class PredictionResponse(BaseModel):
     id: int
-    user_id: str
+    user_id: int
     prediction: int
     improvement_percentage: float
     created_at: datetime
@@ -35,7 +35,7 @@ class PredictionResponse(BaseModel):
         orm_mode = True
 
 class OverallPredictionResponse(BaseModel):
-    user_id: str
+    user_id: int
     overall_prediction: int
     count: int
     overall_improvement_percentage: float

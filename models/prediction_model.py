@@ -6,7 +6,7 @@ class Prediction(Base):
     __tablename__ = "predictions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(255), index=True)
+    user_id = Column(Integer, index=True)
     
     # Feature columns
     Eye_Contact_Initial = Column(Float)
