@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from models.cnn_prediction_model import ColoringPrediction
 from shemas.prediction_shema import PredictionCreate, PredictionResponse, OverallPredictionResponse
 from cruds.prediction_crud import create_prediction, get_predictions_by_user
 from db import SessionLocal
@@ -77,3 +78,61 @@ def get_overall_prediction(user_id: str, db: Session = Depends(get_db)):
         count=len(predictions),
         overall_improvement_percentage=overall_improvement_percentage
     )
+
+@router.get("/average_progress/{user_id}")
+def get_average_progress(user_id: str, db: Session = Depends(get_db)):
+    """
+    Calculates the average progress for a user by combining:
+    
+    1) The overall improvement percentage from primary predictions (using the Prediction table)
+    2) The progress percentage from the CNN predictions (using the ColoringPrediction table)
+    
+    The overall average is computed as:
+    
+        average_progress = (overall_improvement_percentage + progress_percentage) / 2
+        
+    Returns the individual metrics as well as the computed average.
+    """
+    # Get overall improvement percentage from primary predictions
+    overall_preds = get_predictions_by_user(db=db, user_id=user_id)
+    if overall_preds:
+        improvement_percentages = [pred.improvement_percentage for pred in overall_preds if pred.improvement_percentage is not None]
+        overall_improvement_percentage = sum(improvement_percentages) / len(improvement_percentages) if improvement_percentages else 0
+    else:
+        overall_improvement_percentage = 0
+
+    # Get progress percentage from CNN predictions
+    cnn_predictions = (
+        db.query(ColoringPrediction)
+          .filter(ColoringPrediction.user_id == str(user_id))
+          .order_by(ColoringPrediction.created_at.desc())
+          .limit(2)
+          .all()
+    )
+    if len(cnn_predictions) < 2:
+        progress_percentage = 0
+    else:
+        mapping = {
+            "asd_mild_coloring_3-6": 25,
+            "asd_moderate_coloring_3-6": 50,
+            "asd_severe_coloring_3-6": 75,
+            "asdwithcd_mild_coloring_3-6": 25,
+            "asdwithcd_moderate_coloring_3-6": 50,
+            "asdwithcd_severe_coloring_3-6": 75,
+            "non_asd_normal_coloring_3-6": 0
+        }
+        baseline = cnn_predictions[1]
+        newest = cnn_predictions[0]
+        baseline_score = mapping.get(baseline.predicted_label, 0)
+        newest_score = mapping.get(newest.predicted_label, 0)
+        progress_percentage = baseline_score - newest_score
+
+    # Calculate the average of both progress values
+    average_progress = (overall_improvement_percentage + progress_percentage) / 2
+
+    return {
+        "user_id": user_id,
+        "overall_improvement_percentage": overall_improvement_percentage,
+        "cnn_progress_percentage": progress_percentage,
+        "average_progress": average_progress
+    }
