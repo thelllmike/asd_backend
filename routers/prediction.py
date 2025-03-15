@@ -57,7 +57,7 @@ def create_prediction_endpoint(prediction: PredictionCreate, db: Session = Depen
     }
     return response_data
 
-@router.get("/user/{user_id}/overall", response_model=OverallPredictionResponse)
+@router.get("/user/{user_id}", response_model=OverallPredictionResponse)
 def get_overall_prediction(user_id: str, db: Session = Depends(get_db)):
     predictions = get_predictions_by_user(db=db, user_id=user_id)
     if not predictions:

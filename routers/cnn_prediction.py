@@ -2,6 +2,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException , Depends, Form
 from sqlalchemy.orm import Session
 from model.tensorflow_model import predict_image
 # from shemas.cnn_prediction_shema import PredictionResponse
+from models.cnn_prediction_model import ColoringPrediction
 from shemas.cnn_prediction_shema import (
     ColoringPredictionCreate,
     ColoringPredictionResponse,
@@ -70,3 +71,65 @@ async def detect_and_save(
         return record
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {e}")
+
+
+@router.get("/progress/{user_id}")
+def get_progress(user_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve the two most recent predictions for a user (based on created_at timestamp) and calculate progress:
+    
+        progress = (score of newest prediction) - (score of second most recent prediction)
+    
+    Mapping:
+        "asd_mild_coloring_3-6": 25
+        "asd_moderate_coloring_3-6": 50
+        "asd_severe_coloring_3-6": 75
+        "asdwithcd_mild_coloring_3-6": 25
+        "asdwithcd_moderate_coloring_3-6": 50
+        "asdwithcd_severe_coloring_3-6": 75
+        "non_asd_normal_coloring_3-6": 0
+        
+    For example, if the second most recent prediction is "asd_mild_coloring_3-6" (25)
+    and the most recent is "asd_severe_coloring_3-6" (75), then progress = 75 - 25 = 50%.
+    """
+    # Query the two latest predictions sorted by created_at descending.
+    predictions = (
+        db.query(ColoringPrediction)
+          .filter(ColoringPrediction.user_id == str(user_id))
+          .order_by(ColoringPrediction.created_at.desc())
+          .limit(2)
+          .all()
+    )
+    
+    if len(predictions) < 2:
+        raise HTTPException(status_code=404, detail="Not enough predictions to calculate progress")
+    
+    # Most recent prediction
+    followup = predictions[0]
+    # Second most recent prediction (baseline)
+    baseline = predictions[1]
+    
+    mapping = {
+        "asd_mild_coloring_3-6": 25,
+        "asd_moderate_coloring_3-6": 50,
+        "asd_severe_coloring_3-6": 75,
+        "asdwithcd_mild_coloring_3-6": 25,
+        "asdwithcd_moderate_coloring_3-6": 50,
+        "asdwithcd_severe_coloring_3-6": 75,
+        "non_asd_normal_coloring_3-6": 0
+    }
+    
+    baseline_score = mapping.get(baseline.predicted_label, 0)
+    followup_score = mapping.get(followup.predicted_label, 0)
+    
+    # Calculate progress as the difference (followup - baseline).
+    progress = followup_score - baseline_score
+    
+    return {
+        "user_id": user_id,
+        "progress_percentage": progress,
+        "baseline_prediction": baseline.predicted_label,
+        "followup_prediction": followup.predicted_label,
+        "baseline_date": baseline.created_at,
+        "followup_date": followup.created_at
+    }
