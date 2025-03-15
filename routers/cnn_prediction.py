@@ -72,13 +72,12 @@ async def detect_and_save(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {e}")
 
-
 @router.get("/progress/{user_id}")
 def get_progress(user_id: int, db: Session = Depends(get_db)):
     """
     Retrieve the two most recent predictions for a user (based on created_at timestamp) and calculate progress:
     
-        progress = (score of newest prediction) - (score of second most recent prediction)
+        progress = (score of second most recent prediction) - (score of newest prediction)
     
     Mapping:
         "asd_mild_coloring_3-6": 25
@@ -89,8 +88,8 @@ def get_progress(user_id: int, db: Session = Depends(get_db)):
         "asdwithcd_severe_coloring_3-6": 75
         "non_asd_normal_coloring_3-6": 0
         
-    For example, if the second most recent prediction is "asd_mild_coloring_3-6" (25)
-    and the most recent is "asd_severe_coloring_3-6" (75), then progress = 75 - 25 = 50%.
+    For example, if the second most recent prediction is "asd_severe_coloring_3-6" (75)
+    and the most recent is "asd_mild_coloring_3-6" (25), then progress = 75 - 25 = 50%.
     """
     # Query the two latest predictions sorted by created_at descending.
     predictions = (
@@ -104,8 +103,8 @@ def get_progress(user_id: int, db: Session = Depends(get_db)):
     if len(predictions) < 2:
         raise HTTPException(status_code=404, detail="Not enough predictions to calculate progress")
     
-    # Most recent prediction
-    followup = predictions[0]
+    # Most recent prediction (newest)
+    newest = predictions[0]
     # Second most recent prediction (baseline)
     baseline = predictions[1]
     
@@ -120,16 +119,16 @@ def get_progress(user_id: int, db: Session = Depends(get_db)):
     }
     
     baseline_score = mapping.get(baseline.predicted_label, 0)
-    followup_score = mapping.get(followup.predicted_label, 0)
+    newest_score = mapping.get(newest.predicted_label, 0)
     
-    # Calculate progress as the difference (followup - baseline).
-    progress = followup_score - baseline_score
+    # Calculate progress as the difference (baseline - newest).
+    progress = baseline_score - newest_score
     
     return {
         "user_id": user_id,
         "progress_percentage": progress,
         "baseline_prediction": baseline.predicted_label,
-        "followup_prediction": followup.predicted_label,
+        "followup_prediction": newest.predicted_label,
         "baseline_date": baseline.created_at,
-        "followup_date": followup.created_at
+        "followup_date": newest.created_at
     }
